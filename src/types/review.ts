@@ -20,8 +20,27 @@ export type FriendPasswords = Record<string, string>;
 export type Session =
   | {
       role: "admin";
+      token: string;
     }
   | {
       role: "friend";
       friendId: string;
+      token: string;
     };
+
+export type PasswordCredential = {
+  salt: string;
+  hash: string;
+};
+
+export type StoreData = {
+  friends: Friend[];
+  reviews: Review[];
+  passwordCredentials: Record<string, PasswordCredential>;
+};
+
+export type PublicStoreData = {
+  friends: Friend[];
+  reviews: Review[];
+  passwordStatus: Record<string, boolean>;
+};

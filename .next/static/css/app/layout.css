@@ -491,9 +491,10 @@ time,
 
 .admin-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.55fr) auto;
   grid-gap: 14px;
   gap: 14px;
+  align-items: end;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
@@ -511,6 +512,13 @@ time,
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+}
+
+.admin-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .stats-band {
@@ -604,6 +612,10 @@ time,
 
   .admin-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-button-group {
+    width: 100%;
   }
 
   .login-card {

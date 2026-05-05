@@ -1,0 +1,66 @@
+{
+  "friends": [
+    {
+      "id": "friend-1",
+      "name": "Kral Bayram"
+    },
+    {
+      "id": "friend-2",
+      "name": "Enes"
+    },
+    {
+      "id": "friend-3",
+      "name": "Selman"
+    },
+    {
+      "id": "friend-4",
+      "name": "Serkan"
+    },
+    {
+      "id": "friend-5",
+      "name": "Mustafa"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "ca4fe612-301a-4ec9-bd1b-74d7dc6e3be8",
+      "authorId": "friend-5",
+      "targetId": "friend-1",
+      "date": "2026-05-05",
+      "score": 10,
+      "comment": "Adammm",
+      "createdAt": "2026-05-05T10:39:45.521Z"
+    },
+    {
+      "id": "5f130dcc-deb2-43a8-b7e6-dd2c0e680a79",
+      "authorId": "friend-3",
+      "targetId": "friend-1",
+      "date": "2026-05-05",
+      "score": 10,
+      "comment": "Çok kral adam",
+      "createdAt": "2026-05-05T10:39:19.817Z"
+    }
+  ],
+  "passwordCredentials": {
+    "friend-1": {
+      "salt": "7624c66374e5a22398c791cf145ecd17",
+      "hash": "cd800b22d6bdb16a9bb502eda533ce461731b1351fe497f33087e73d918891b8"
+    },
+    "friend-2": {
+      "salt": "cfb5f3b1ded18fd9afc7bd80d1fececc",
+      "hash": "fe8a0788e5129e2e51ab8427d5f94bd372756680a0bb0407898256cee2b660a2"
+    },
+    "friend-3": {
+      "salt": "8c55ac17cc7848c44925b711fabaca64",
+      "hash": "c378e427c47bdbf13aa5cc0b552be25ebaaef1d9869b3f6d902ccd22853dbe5a"
+    },
+    "friend-4": {
+      "salt": "b6fc5a3b2ef18ac44a04ec24f14590ee",
+      "hash": "edf5b5c02ac715837104abd75b709f0a8a612e1253cf4450ac7ac6745c9fda36"
+    },
+    "friend-5": {
+      "salt": "aa4bf57a88b9fb392f46317cbf02d321",
+      "hash": "6e250fdf45d887038b53d93d348885df194a30a2c73dc4f200069a57df513061"
+    }
+  }
+}

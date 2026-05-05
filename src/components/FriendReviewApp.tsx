@@ -17,37 +17,15 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DEFAULT_FRIENDS, getFriendName } from "@/lib/friends";
-import {
-  clearSession,
-  loadActiveUser,
-  loadFriends,
-  loadPasswords,
-  loadReviews,
-  loadSession,
-  resetLocalData,
-  saveActiveUser,
-  saveFriends,
-  savePasswords,
-  saveReviews,
-  saveSession,
-} from "@/lib/storage";
-import type { AppView, Friend, FriendPasswords, Review, Session } from "@/types/review";
+import { clearSession, loadSession, saveActiveUser, saveSession } from "@/lib/storage";
+import type { AppView, Friend, PublicStoreData, Review, Session } from "@/types/review";
 
-const ADMIN_PASSWORD = "admin123";
 const SCORE_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
 
 function getTodayInputValue() {
   const today = new Date();
   today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
   return today.toISOString().slice(0, 10);
-}
-
-function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function formatDisplayDate(value: string) {
@@ -67,20 +45,48 @@ function averageScore(reviews: Review[]) {
   return (total / reviews.length).toFixed(1);
 }
 
-function isValidFriendSession(session: Session | null, friends: Friend[]) {
-  return session?.role === "friend" && friends.some((friend) => friend.id === session.friendId);
+async function fetchStore() {
+  const response = await fetch("/api/store", { cache: "no-store" });
+  const payload = (await response.json()) as { data?: PublicStoreData; error?: string };
+
+  if (!response.ok || !payload.data) {
+    throw new Error(payload.error ?? "Veri alınamadı.");
+  }
+
+  return payload.data;
+}
+
+async function postStore(body: Record<string, unknown>) {
+  const response = await fetch("/api/store", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json()) as {
+    data?: PublicStoreData;
+    error?: string;
+    session?: Session;
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "İşlem tamamlanamadı.");
+  }
+
+  return payload;
 }
 
 export function FriendReviewApp() {
   const [isReady, setIsReady] = useState(false);
   const [friends, setFriends] = useState<Friend[]>(DEFAULT_FRIENDS);
-  const [passwords, setPasswords] = useState<FriendPasswords>({});
+  const [friendDrafts, setFriendDrafts] = useState<Friend[]>(DEFAULT_FRIENDS);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [passwordStatus, setPasswordStatus] = useState<Record<string, boolean>>({});
   const [session, setSession] = useState<Session | null>(null);
   const [loginMode, setLoginMode] = useState<"friend" | "admin">("friend");
   const [loginFriendId, setLoginFriendId] = useState(DEFAULT_FRIENDS[0].id);
   const [loginPassword, setLoginPassword] = useState("");
   const [loginStatus, setLoginStatus] = useState("");
+  const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({});
   const [targetId, setTargetId] = useState(DEFAULT_FRIENDS[1].id);
   const [reviewDate, setReviewDate] = useState(getTodayInputValue);
   const [feedDate, setFeedDate] = useState(getTodayInputValue);
@@ -88,27 +94,51 @@ export function FriendReviewApp() {
   const [comment, setComment] = useState("");
   const [view, setView] = useState<AppView>("daily");
   const [status, setStatus] = useState("");
+  const [nameDraftDirty, setNameDraftDirty] = useState(false);
+
+  const activeUserId = session?.role === "friend" ? session.friendId : "";
+  const activeUserName = activeUserId ? getFriendName(friends, activeUserId) : "Admin";
+  const isAdmin = session?.role === "admin";
+  const hasUnsetPasswords = friends.some((friend) => !passwordStatus[friend.id]);
+
+  function applyStoreData(data: PublicStoreData, options?: { keepNameDrafts?: boolean }) {
+    setFriends(data.friends);
+    if (!options?.keepNameDrafts) {
+      setFriendDrafts(data.friends);
+    }
+    setReviews(data.reviews);
+    setPasswordStatus(data.passwordStatus);
+    setLoginFriendId((currentId) =>
+      data.friends.some((friend) => friend.id === currentId) ? currentId : data.friends[0].id,
+    );
+  }
 
   useEffect(() => {
-    const storedFriends = loadFriends();
-    const storedSession = loadSession();
-    const storedActiveUser = loadActiveUser();
-    const firstFriendId = storedFriends[0].id;
-    const defaultFriendId = storedFriends.some((friend) => friend.id === storedActiveUser)
-      ? storedActiveUser
-      : firstFriendId;
+    let isMounted = true;
 
-    setFriends(storedFriends);
-    setPasswords(loadPasswords());
-    setReviews(loadReviews());
-    setLoginFriendId(defaultFriendId);
-    setSession(
-      storedSession?.role === "admin" || isValidFriendSession(storedSession, storedFriends)
-        ? storedSession
-        : null,
-    );
-    setTargetId(storedFriends.find((friend) => friend.id !== defaultFriendId)?.id ?? storedFriends[1].id);
-    setIsReady(true);
+    async function boot() {
+      try {
+        const data = await fetchStore();
+        if (!isMounted) {
+          return;
+        }
+
+        applyStoreData(data);
+        setSession(loadSession());
+      } catch (error) {
+        setLoginStatus(error instanceof Error ? error.message : "Veri alınamadı.");
+      } finally {
+        if (isMounted) {
+          setIsReady(true);
+        }
+      }
+    }
+
+    boot();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -116,29 +146,18 @@ export function FriendReviewApp() {
       return;
     }
 
-    saveFriends(friends);
-  }, [friends, isReady]);
+    const intervalId = window.setInterval(async () => {
+      try {
+        applyStoreData(await fetchStore(), {
+          keepNameDrafts: Boolean(isAdmin && view === "settings" && nameDraftDirty),
+        });
+      } catch {
+        setStatus("Veri yenilenemedi.");
+      }
+    }, 7000);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    savePasswords(passwords);
-  }, [isReady, passwords]);
-
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    saveReviews(reviews);
-  }, [reviews, isReady]);
-
-  const activeUserId = session?.role === "friend" ? session.friendId : "";
-  const activeUserName = activeUserId ? getFriendName(friends, activeUserId) : "Admin";
-  const isAdmin = session?.role === "admin";
-  const hasUnsetPasswords = friends.some((friend) => !passwords[friend.id]?.trim());
+    return () => window.clearInterval(intervalId);
+  }, [isAdmin, isReady, nameDraftDirty, view]);
 
   useEffect(() => {
     if (!activeUserId) {
@@ -179,44 +198,39 @@ export function FriendReviewApp() {
     [activeUserId, reviewDate, reviews, targetId],
   );
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoginStatus("");
 
-    const cleanPassword = loginPassword.trim();
+    try {
+      const payload = await postStore({
+        action: "login",
+        mode: loginMode,
+        friendId: loginFriendId,
+        password: loginPassword,
+      });
 
-    if (loginMode === "admin") {
-      if (cleanPassword !== ADMIN_PASSWORD) {
-        setLoginStatus("Admin şifresi hatalı.");
-        return;
+      if (payload.data) {
+        applyStoreData(payload.data);
       }
 
-      const adminSession: Session = { role: "admin" };
-      saveSession(adminSession);
-      setSession(adminSession);
-      setView("settings");
+      if (payload.session) {
+        saveSession(payload.session);
+        setSession(payload.session);
+
+        if (payload.session.role === "friend") {
+          const friendId = payload.session.friendId;
+          setTargetId(friends.find((friend) => friend.id !== friendId)?.id ?? "");
+          saveActiveUser(friendId);
+        } else {
+          setView("settings");
+        }
+      }
+
       setLoginPassword("");
-      setLoginStatus("");
-      return;
+    } catch (error) {
+      setLoginStatus(error instanceof Error ? error.message : "Giriş başarısız.");
     }
-
-    const savedPassword = passwords[loginFriendId]?.trim();
-    if (!savedPassword) {
-      setLoginStatus("Bu kullanıcı için admin henüz şifre belirlememiş.");
-      return;
-    }
-
-    if (cleanPassword !== savedPassword) {
-      setLoginStatus("Şifre hatalı.");
-      return;
-    }
-
-    const friendSession: Session = { role: "friend", friendId: loginFriendId };
-    saveSession(friendSession);
-    saveActiveUser(loginFriendId);
-    setSession(friendSession);
-    setTargetId(friends.find((friend) => friend.id !== loginFriendId)?.id ?? "");
-    setLoginPassword("");
-    setLoginStatus("");
   }
 
   function handleLogout() {
@@ -227,10 +241,10 @@ export function FriendReviewApp() {
     setView("daily");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!activeUserId) {
+    if (!session || session.role !== "friend") {
       setStatus("Yorum yazmak için kullanıcı girişi gerekli.");
       return;
     }
@@ -241,74 +255,127 @@ export function FriendReviewApp() {
       return;
     }
 
-    if (activeUserId === targetId) {
-      setStatus("Kendine yorum yazamazsın.");
-      return;
-    }
+    try {
+      const payload = await postStore({
+        action: "submitReview",
+        token: session.token,
+        targetId,
+        date: reviewDate,
+        score,
+        comment: cleanComment,
+      });
 
-    if (existingReview) {
-      setReviews((currentReviews) =>
-        currentReviews.map((review) =>
-          review.id === existingReview.id
-            ? { ...review, score, comment: cleanComment, createdAt: new Date().toISOString() }
-            : review,
-        ),
-      );
-      setStatus("Günün yorumu güncellendi.");
-    } else {
-      setReviews((currentReviews) => [
-        {
-          id: createId(),
-          authorId: activeUserId,
-          targetId,
-          date: reviewDate,
-          score,
-          comment: cleanComment,
-          createdAt: new Date().toISOString(),
-        },
-        ...currentReviews,
-      ]);
-      setStatus("Anonim yorum kaydedildi.");
-    }
+      if (payload.data) {
+        applyStoreData(payload.data);
+      }
 
-    setComment("");
-    setFeedDate(reviewDate);
-    setView("daily");
+      setComment("");
+      setFeedDate(reviewDate);
+      setView("daily");
+      setStatus(existingReview ? "Günün yorumu güncellendi." : "Anonim yorum kaydedildi.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Yorum kaydedilemedi.");
+    }
   }
 
   function updateFriendName(friendId: string, name: string) {
-    setFriends((currentFriends) =>
+    setNameDraftDirty(true);
+    setFriendDrafts((currentFriends) =>
       currentFriends.map((friend) =>
         friend.id === friendId ? { ...friend, name: name.slice(0, 28) } : friend,
       ),
     );
   }
 
-  function updatePassword(friendId: string, password: string) {
-    setPasswords((currentPasswords) => ({
-      ...currentPasswords,
-      [friendId]: password.slice(0, 32),
-    }));
-  }
-
-  function deleteReview(reviewId: string) {
-    if (!isAdmin) {
+  async function saveNames() {
+    if (!session || session.role !== "admin") {
       return;
     }
 
-    setReviews((currentReviews) => currentReviews.filter((review) => review.id !== reviewId));
-    setStatus("Yorum silindi.");
+    try {
+      const payload = await postStore({
+        action: "saveAdminSettings",
+        token: session.token,
+        friends: friendDrafts,
+        passwordDrafts,
+      });
+
+      if (payload.data) {
+        applyStoreData(payload.data);
+      }
+
+      setPasswordDrafts({});
+      setNameDraftDirty(false);
+      setStatus("İsimler ve yazılan şifreler kaydedildi.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Ayarlar kaydedilemedi.");
+    }
   }
 
-  function resetApp() {
-    resetLocalData();
-    setFriends(DEFAULT_FRIENDS);
-    setPasswords({});
-    setReviews([]);
-    setSession(null);
-    setLoginFriendId(DEFAULT_FRIENDS[0].id);
-    setTargetId(DEFAULT_FRIENDS[1].id);
-    setStatus("Yerel kayıtlar sıfırlandı.");
+  async function saveFriendPassword(friendId: string) {
+    if (!session || session.role !== "admin") {
+      return;
+    }
+
+    try {
+      const payload = await postStore({
+        action: "setPassword",
+        token: session.token,
+        friendId,
+        password: passwordDrafts[friendId] ?? "",
+      });
+
+      if (payload.data) {
+        applyStoreData(payload.data, { keepNameDrafts: nameDraftDirty });
+      }
+
+      setPasswordDrafts((currentDrafts) => ({ ...currentDrafts, [friendId]: "" }));
+      setStatus("Şifre kaydedildi.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Şifre kaydedilemedi.");
+    }
+  }
+
+  async function deleteReview(reviewId: string) {
+    if (!session || session.role !== "admin") {
+      return;
+    }
+
+    try {
+      const payload = await postStore({ action: "deleteReview", token: session.token, reviewId });
+
+      if (payload.data) {
+        applyStoreData(payload.data);
+      }
+
+      setStatus("Yorum silindi.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Yorum silinemedi.");
+    }
+  }
+
+  async function resetApp() {
+    if (!session || session.role !== "admin") {
+      return;
+    }
+
+    try {
+      const payload = await postStore({ action: "reset", token: session.token });
+
+      if (payload.data) {
+        applyStoreData(payload.data);
+      }
+
+      clearSession();
+      setSession(null);
+      setPasswordDrafts({});
+      setFriendDrafts(DEFAULT_FRIENDS);
+      setNameDraftDirty(false);
+      setTargetId(DEFAULT_FRIENDS[1].id);
+      setStatus("Yerel JSON verisi sıfırlandı.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Sıfırlama başarısız.");
+    }
   }
 
   if (!isReady) {
@@ -365,7 +432,7 @@ export function FriendReviewApp() {
                 type="password"
                 value={loginPassword}
                 onChange={(event) => setLoginPassword(event.target.value)}
-                placeholder={loginMode === "admin" ? "adminşifresi" : "Kişisel şifre"}
+                placeholder={loginMode === "admin" ? "admin123" : "Kişisel şifre"}
               />
             </label>
 
@@ -531,7 +598,7 @@ export function FriendReviewApp() {
 
             {view === "daily" && (
               <ReviewList
-                canDelete={isAdmin}
+                canDelete={Boolean(isAdmin)}
                 emptyText="Bu gün için kayıt yok."
                 friends={friends}
                 reviews={todaysReviews}
@@ -555,12 +622,12 @@ export function FriendReviewApp() {
                   <ShieldCheck aria-hidden="true" size={20} />
                   <div>
                     <h2>Admin paneli</h2>
-                    <p>İsimleri ve kişisel giriş şifrelerini buradan belirle.</p>
+                    <p>İsimleri ve kişisel giriş şifrelerini merkezi JSON verisine kaydet.</p>
                   </div>
                 </div>
 
                 <div className="friend-editor password-editor">
-                  {friends.map((friend, index) => (
+                  {friendDrafts.map((friend, index) => (
                     <div className="admin-row" key={friend.id}>
                       <label>
                         <span>Kişi {index + 1}</span>
@@ -570,24 +637,41 @@ export function FriendReviewApp() {
                         />
                       </label>
                       <label>
-                        <span>Şifre</span>
+                        <span>{passwordStatus[friend.id] ? "Yeni şifre" : "Şifre gerekli"}</span>
                         <input
                           type="text"
-                          value={passwords[friend.id] ?? ""}
-                          onChange={(event) => updatePassword(friend.id, event.target.value)}
-                          placeholder="Şifre belirle"
+                          value={passwordDrafts[friend.id] ?? ""}
+                          onChange={(event) =>
+                            setPasswordDrafts((currentDrafts) => ({
+                              ...currentDrafts,
+                              [friend.id]: event.target.value,
+                            }))
+                          }
+                          placeholder={passwordStatus[friend.id] ? "Değiştirmek için yaz" : "Şifre belirle"}
                         />
                       </label>
+                      <button className="ghost-button" type="button" onClick={() => saveFriendPassword(friend.id)}>
+                        <Save aria-hidden="true" size={17} />
+                        <span>Şifre kaydet</span>
+                      </button>
                     </div>
                   ))}
                 </div>
 
                 <div className="admin-actions">
-                  <p>{hasUnsetPasswords ? "Bazı kullanıcıların şifresi henüz boş." : "Tüm kullanıcıların şifresi hazır."}</p>
-                  <button className="ghost-button" type="button" onClick={resetApp}>
-                    <RotateCcw aria-hidden="true" size={17} />
-                    <span>Sıfırla</span>
-                  </button>
+                  <p aria-live="polite">
+                    {status || (hasUnsetPasswords ? "Bazı kullanıcıların şifresi henüz boş." : "Tüm kullanıcıların şifresi hazır.")}
+                  </p>
+                  <div className="admin-button-group">
+                    <button className="primary-button" type="button" onClick={saveNames}>
+                      <Save aria-hidden="true" size={17} />
+                      <span>Tümünü kaydet</span>
+                    </button>
+                    <button className="ghost-button" type="button" onClick={resetApp}>
+                      <RotateCcw aria-hidden="true" size={17} />
+                      <span>Sıfırla</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

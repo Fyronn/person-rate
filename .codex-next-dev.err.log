@@ -1,8 +1,2 @@
- ⨯ Error: ENOENT: no such file or directory, open 'C:\Users\Fyron\Desktop\rate507\.next\server\vendor-chunks\next.js'
-    at <unknown> (C:\Users\Fyron\Desktop\rate507\.next\server\app\_not-found\page.js:227:47)
-    at Object.<anonymous> (C:\Users\Fyron\Desktop\rate507\.next\server\app\_not-found\page.js:230:3) {
-  errno: -4058,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: 'C:\\Users\\Fyron\\Desktop\\rate507\\.next\\server\\vendor-chunks\\next.js'
-}
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
