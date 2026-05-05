@@ -1,0 +1,42 @@
+   ▲ Next.js 15.5.15
+   - Local:        http://127.0.0.1:3001
+   - Network:      http://127.0.0.1:3001
+
+ ✓ Starting...
+ ✓ Ready in 2.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.6s (578 modules)
+ GET / 200 in 4024ms
+ GET / 200 in 68ms
+ GET / 200 in 57ms
+ GET / 200 in 85ms
+ GET / 200 in 82ms
+ GET / 200 in 103ms
+ GET / 200 in 89ms
+ GET / 200 in 80ms
+ ✓ Compiled /_not-found in 339ms (569 modules)
+ GET /sw.js 404 in 554ms
+ GET /sw.js 404 in 41ms
+ ✓ Compiled in 250ms (569 modules)
+ GET / 200 in 272ms
+ GET /sw.js 404 in 61ms
+ GET / 200 in 78ms
+ ✓ Compiled in 177ms (569 modules)
+ GET / 200 in 166ms
+ GET /sw.js 404 in 40ms
+ GET / 200 in 59ms
+ GET /sw.js 404 in 48ms
+ GET /sw.js 404 in 36ms
+ GET /sw.js 404 in 43ms
+ ✓ Compiled in 346ms (564 modules)
+ ✓ Compiled in 799ms (570 modules)
+ ✓ Compiled in 286ms (584 modules)
+ GET / 200 in 120ms
+ GET / 200 in 17ms
+ GET / 200 in 22ms
+ ✓ Compiled /_not-found in 436ms (575 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1525ms (921 modules)
+ GET /sw.js 500 in 4429ms
+ GET /sw.js 404 in 210ms
+ ✓ Compiled in 513ms (820 modules)
