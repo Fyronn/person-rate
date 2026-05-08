@@ -50,7 +50,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as Record<string, unknown>;
+  let body: Record<string, unknown>;
+
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Geçersiz JSON isteği.");
+  }
 
   if (body.action === "login") {
     const password = typeof body.password === "string" ? body.password : "";

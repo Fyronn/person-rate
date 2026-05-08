@@ -23,6 +23,33 @@
   ],
   "reviews": [
     {
+      "id": "6d0364c1-828a-4c73-ba9e-a352b709bd66",
+      "authorId": "friend-2",
+      "targetId": "friend-1",
+      "date": "2026-05-08",
+      "score": 8,
+      "comment": "rgerg",
+      "createdAt": "2026-05-08T18:27:18.380Z"
+    },
+    {
+      "id": "d552aac9-b5d3-4ac7-bc97-e2a64f303f73",
+      "authorId": "friend-3",
+      "targetId": "friend-2",
+      "date": "2026-05-08",
+      "score": 8,
+      "comment": "fffgdg",
+      "createdAt": "2026-05-08T18:14:06.806Z"
+    },
+    {
+      "id": "35d3fd51-1328-473a-b766-1a4631afa05e",
+      "authorId": "friend-3",
+      "targetId": "friend-1",
+      "date": "2026-05-08",
+      "score": 8,
+      "comment": "fewfw",
+      "createdAt": "2026-05-08T18:02:25.175Z"
+    },
+    {
       "id": "ca4fe612-301a-4ec9-bd1b-74d7dc6e3be8",
       "authorId": "friend-5",
       "targetId": "friend-1",

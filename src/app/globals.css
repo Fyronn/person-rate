@@ -245,6 +245,10 @@ textarea:focus {
   padding: 22px;
 }
 
+.feed-panel {
+  min-height: 0;
+}
+
 .section-title {
   gap: 10px;
   margin-bottom: 18px;
@@ -383,6 +387,11 @@ textarea:focus {
 .review-list {
   display: grid;
   gap: 12px;
+  max-height: min(640px, 64dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .review-card,
@@ -565,6 +574,11 @@ time,
   .feed-panel,
   .identity-panel {
     padding: 16px;
+  }
+
+  .review-list {
+    max-height: 58dvh;
+    padding-right: 2px;
   }
 
   .field-grid,

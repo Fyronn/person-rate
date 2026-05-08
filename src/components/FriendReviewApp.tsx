@@ -46,8 +46,8 @@ function averageScore(reviews: Review[]) {
 }
 
 async function fetchStore() {
-  const response = await fetch("/api/store", { cache: "no-store" });
-  const payload = (await response.json()) as { data?: PublicStoreData; error?: string };
+  const response = await requestStore({ method: "GET" });
+  const payload = await readStoreResponse<{ data?: PublicStoreData; error?: string }>(response);
 
   if (!response.ok || !payload.data) {
     throw new Error(payload.error ?? "Veri alınamadı.");
@@ -57,22 +57,51 @@ async function fetchStore() {
 }
 
 async function postStore(body: Record<string, unknown>) {
-  const response = await fetch("/api/store", {
+  const response = await requestStore({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = (await response.json()) as {
+  const payload = await readStoreResponse<{
     data?: PublicStoreData;
     error?: string;
     session?: Session;
-  };
+  }>(response);
 
   if (!response.ok) {
     throw new Error(payload.error ?? "İşlem tamamlanamadı.");
   }
 
   return payload;
+}
+
+async function requestStore(options: RequestInit) {
+  try {
+    return await fetch("/api/store", {
+      ...options,
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error("Ortak yorum verisine ulaşılamadı. Bağlantıyı kontrol edip tekrar dene.");
+  }
+}
+
+async function readStoreResponse<T>(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error("Sunucudan JSON yerine farklı bir cevap geldi. Sayfayı yenileyip tekrar dene.");
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error("Sunucudan gelen JSON okunamadı. Sayfayı yenileyip tekrar dene.");
+  }
 }
 
 export function FriendReviewApp() {
